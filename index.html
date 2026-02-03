@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>日常出款登記系統</title>
+    <style>
+        :root {
+            --bg: #F7F6F2;
+            --card: #FFFFFF;
+            --primary: #8E9775;
+            --accent: #AF8F6F;
+            --text: #4A4A4A;
+            --border: #E0DED7;
+            --danger: #e74c3c;
+            --success: #217346;
+            --info: #5da9ad;
+            --dark: #2c3e50;
+        }
+
+        body { background-color: var(--bg); color: var(--text); font-family: "PingFang TC", "Microsoft JhengHei", sans-serif; margin: 0; padding: 15px; display: flex; flex-direction: column; align-items: center; }
+        
+        .tabs { display: flex; gap: 5px; margin-bottom: 20px; width: 100%; max-width: 500px; }
+        .tab-btn { flex: 1; padding: 12px; border: none; background: #E0DED7; cursor: pointer; border-radius: 8px 8px 0 0; color: #777; font-weight: bold; transition: 0.3s; }
+        .tab-btn.active { background: var(--primary); color: white; }
+
+        .page { display: none; width: 100%; max-width: 500px; animation: fadeIn 0.3s; }
+        #listPage.page.active { display: block; width: 98vw; max-width: none; }
+        .page.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        .card { background: var(--card); width: 100%; padding: 25px; border-radius: 0 0 15px 15px; box-shadow: 0 8px 30px rgba(0,0,0,0.05); box-sizing: border-box; margin-bottom: 20px; }
+        .list-card { background: var(--card); width: 100%; padding: 25px; border-radius: 15px; box-shadow: 0 8px 30px rgba(0,0,0,0.05); box-sizing: border-box; }
+        
+        h2 { text-align: center; color: var(--primary); font-weight: 500; margin-bottom: 20px; letter-spacing: 1px; }
+        .row { display: flex; gap: 10px; margin-bottom: 15px; align-items: flex-end; }
+        .col { flex: 1; display: flex; flex-direction: column; }
+        
+        label { font-size: 0.8rem; margin-bottom: 5px; color: #999; }
+        input, select { padding: 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 1rem; outline: none; background: #FAFAFA; width: 100%; box-sizing: border-box; }
+        input:focus, select:focus { border-color: var(--primary); background: #FFF; }
+        
+        .display-area { background: #FCFCFB; border: 1px solid #EEE; padding: 20px; border-radius: 10px; margin-top: 20px; min-height: 50px; }
+        .section-title { font-size: 0.85rem; font-weight: bold; color: var(--primary); margin-bottom: 10px; border-left: 3px solid var(--primary); padding-left: 8px; }
+        
+        .btn-save { width: 100%; padding: 12px; margin-top: 15px; background: var(--primary); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
+        .btn-excel { padding: 10px 20px; background: var(--success); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; margin-bottom: 15px; }
+        .btn-info { padding: 10px 20px; background: var(--info); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; margin-bottom: 15px; }
+        .btn-reset { width: 100%; padding: 10px; margin-top: 10px; color: #BBB; border: 1px solid #EEE; background: none; cursor: pointer; border-radius: 8px; font-size: 0.8rem; }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 0.85rem; table-layout: fixed; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; overflow: hidden; }
+        
+        #recordTable td { text-overflow: clip; white-space: nowrap; overflow-x: auto; scrollbar-width: none; -ms-overflow-style: none; }
+        #recordTable td::-webkit-scrollbar { display: none; }
+        
+        #vendorTable td { white-space: normal; word-break: break-all; vertical-align: middle; }
+        
+        th { background-color: #f8f8f8; color: var(--primary); }
+        .sortable { cursor: pointer; user-select: none; position: relative; }
+        .sortable:hover { background-color: #f0f0f0; }
+        
+        .editable { cursor: pointer; background-color: #fffdec; border-radius: 4px; padding: 2px 5px; display: block; width: calc(100% - 10px); min-height: 1.2em; border: 1px transparent solid; }
+        .editable:focus { border-color: var(--accent); outline: none; background-color: #fff; }
+        
+        .amount-cell { text-align: right; font-family: monospace; }
+        
+        .action-cell { text-align: center; width: 60px; }
+        .btn-del { color: var(--danger); border: none; background: none; cursor: pointer; font-weight: bold; font-size: 1.2rem; line-height: 1; vertical-align: middle; }
+        
+        .filter-row { margin-bottom: 15px; display: flex; flex-wrap: wrap; align-items: center; gap: 15px; justify-content: space-between; }
+        .filter-group { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+
+        .summary-box { background: #fdfdfd; border: 1px solid var(--primary); padding: 15px; border-radius: 10px; margin-top: 10px; font-weight: bold; display: flex; justify-content: flex-end; align-items: center; gap: 10px; }
+        .summary-amount { color: var(--danger); font-size: 1.2rem; font-family: monospace; }
+
+        /* 拖曳排序相關樣式 */
+        tr.dragging { opacity: 0.5; background-color: #f0f0f0; }
+        tr.drag-over { border-top: 3px solid var(--primary); }
+    </style>
+</head>
+<body>
+
+<div class="tabs">
+    <button class="tab-btn active" onclick="switchPage('calcPage', this)">出款登記</button>
+    <button class="tab-btn" onclick="switchPage('listPage', this)">付款清單</button>
+    <button class="tab-btn" onclick="switchPage('vendorPage', this)">廠商資料</button>
+</div>
+
+<div id="calcPage" class="page active">
+    <div class="card">
+        <h2>日常出款登記</h2>
+        
+        <div class="row">
+            <div class="col">
+                <label>匯款日期 (民國格式 如: 1130515)</label>
+                <input type="text" id="remittanceDate" placeholder="113MMDD">
+            </div>
+            <div class="col">
+                <label>出款帳戶</label>
+                <select id="companyAccountSelect">
+                    <option value="瀞川公司戶1號|001125040175">瀞川公司戶1號 (001125040175)</option>
+                    <option value="瀞川公司戶2號|001128027226">瀞川公司戶2號 (001128027226)</option>
+                    <option value="瀞川公司戶3號|001128027234">瀞川公司戶3號 (001128027234)</option>
+                    <option value="長川營造|027128013127">長川營造 (027128013127)</option>
+                    <option value="聿川公司戶|027125019922">聿川公司戶 (027125019922)</option>
+                    <option value="上川開發有限公司|027125020459">上川開發有限公司 (027125020459)</option>
+                    <option value="建設個人戶(李應吉)|001228026707">建設個人戶(李應吉) (001228026707)</option>
+                    <option value="品川設計工程行錢薇臨|027125019108">品川設計工程行錢薇臨 (027125019108)</option>
+                    <option value="品川個人戶(李應吉)|001228027207">品川個人戶(李應吉) (001228027207)</option>
+                    <option value="房產公司戶(代銷)|001125040876">房產公司戶(代銷) (001125040876)</option>
+                    <option value="代銷王顧問戶頭|027220302917">代銷王顧問戶頭 (027220302917)</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col" style="position: relative;">
+                <label>搜尋廠商 (收款方)</label>
+                <input type="text" id="vendorSearch" placeholder="搜尋廠商關鍵字..." oninput="searchVendor(this.value)">
+                <div id="searchResults" class="search-results"></div>
+                <input type="hidden" id="tempBankCode">
+                <input type="hidden" id="tempAccount">
+                <input type="hidden" id="tempOwner">
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col">
+                <label>內容摘要 (明細)</label>
+                <input type="text" id="workNote" placeholder="例如：辦公室文具採購">
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col">
+                <label>金額</label>
+                <input type="number" id="rawAmount" placeholder="請輸入金額">
+            </div>
+        </div>
+
+        <button class="btn-save" onclick="saveData()">儲存此筆資料</button>
+        <button class="btn-reset" onclick="location.reload()">重新整理</button>
+    </div>
+</div>
+
+<div id="listPage" class="page">
+    <div class="list-card">
+        <div class="section-title">付款清單明細 <small>(支援上下拖曳排序)</small></div>
+        <div class="filter-row">
+            <div class="filter-group">
+                <label style="margin:0">登記月份：</label>
+                <select id="filterMonth" style="width: auto; padding: 5px;" onchange="renderTable()"></select>
+                <label style="margin:0; margin-left:10px;">篩選出款方：</label>
+                <select id="filterCompany" style="width: auto; padding: 5px;" onchange="renderTable()">
+                    <option value="全部">全部顯示</option>
+                    <option value="瀞川公司戶1號">瀞川公司戶1號</option>
+                    <option value="瀞川公司戶2號">瀞川公司戶2號</option>
+                    <option value="瀞川公司戶3號">瀞川公司戶3號</option>
+                    <option value="長川營造">長川營造</option>
+                    <option value="聿川公司戶">聿川公司戶</option>
+                    <option value="上川開發有限公司">上川開發有限公司</option>
+                    <option value="建設個人戶(李應吉)">建設個人戶(李應吉)</option>
+                    <option value="品川設計工程行錢薇臨">品川設計工程行錢薇臨</option>
+                    <option value="品川個人戶(李應吉)">品川個人戶(李應吉)</option>
+                    <option value="房產公司戶(代銷)">房產公司戶(代銷)</option>
+                    <option value="代銷王顧問戶頭">代銷王顧問戶頭</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <button class="btn-info" onclick="autoFillRecordsByOwner()">按戶名補齊資料</button>
+                <button class="btn-info" style="background: var(--danger); border-color: var(--danger);" onclick="clearData()">清空所有資料</button>
+                <button class="btn-info" style="background: var(--dark);" onclick="exportBankExcel()">匯出匯款資料</button>
+                <button class="btn-excel" onclick="exportClaimExcel()">匯出明細</button>
+            </div>
+        </div>
+        <table id="recordTable">
+            <thead>
+                <tr>
+                    <th style="width: 40px; text-align: center;"><input type="checkbox" id="selectAll" checked onclick="toggleAllCheckboxes(this)"></th>
+                    <th style="width: 35px;">No.</th>
+                    <th style="width: 65px;">日期</th>
+                    <th style="width: auto;">內容摘要 (明細)</th>
+                    <th style="width: 90px;">金額</th>
+                    <th style="width: 8.5ch;">解款行</th>
+                    <th style="width: 17ch;">收款帳號</th>
+                    <th style="width: 20em;">收款戶名</th>
+                    <th style="width: 10em;">出款帳戶</th>
+                    <th class="action-cell">功能</th>
+                </tr>
+            </thead>
+            <tbody id="tableBody"></tbody>
+        </table>
+        
+        <div class="summary-box">
+            <span>目前勾選總額：</span>
+            <span class="summary-amount" id="checkedSum">$0</span>
+        </div>
+    </div>
+</div>
+
+<div id="vendorPage" class="page" style="max-width: 850px;">
+    <div class="list-card">
+        <div class="section-title">收款廠商資料管理</div>
+        
+        <div class="vendor-form">
+            <div class="section-title" style="border-left: 3px solid var(--accent); color: var(--accent);">手動新增廠商</div>
+            <div class="row">
+                <div class="col"><label>廠商名稱</label><input type="text" id="newVName" placeholder="公司名"></div>
+                <div class="col"><label>解款行</label><input type="text" id="newVBank" placeholder="代號+名稱"></div>
+            </div>
+            <div class="row">
+                <div class="col"><label>收款帳號</label><input type="text" id="newVAcc" placeholder="銀行帳號"></div>
+                <div class="col"><label>收款戶名</label><input type="text" id="newVOwner" placeholder="戶名"></div>
+            </div>
+            <button class="btn-save" style="margin-top: 5px; background: var(--accent);" onclick="manualAddVendor()">新增廠商資料</button>
+        </div>
+
+        <div class="filter-row">
+            <div class="filter-group">
+                <input type="file" id="csvFileInput" accept=".csv" style="display:none" onchange="importVendorCSV(this)">
+                <button class="btn-excel" onclick="document.getElementById('csvFileInput').click()">批次匯入 CSV</button>
+                <button class="btn-excel" style="background: #5da9ad;" onclick="exportVendorExcel()">匯出廠商清單</button>
+                <button class="btn-info" style="background: var(--dark); margin-bottom: 15px;" onclick="exportFullBackup()">備份全系統資料 (.json)</button>
+                <input type="file" id="backupFileInput" accept=".json" style="display:none" onchange="importFullBackup(this)">
+                <button class="btn-info" style="background: var(--accent); margin-bottom: 15px;" onclick="document.getElementById('backupFileInput').click()">還原系統資料</button>
+            </div>
+            <button class="btn-reset" onclick="clearVendors()" style="color: var(--danger); margin:0; width: auto;">清空廠商庫</button>
+        </div>
+        
+        <table id="vendorTable">
+            <thead>
+                <tr>
+                    <th style="width: 25%;">廠商名稱</th>
+                    <th style="width: 20%;">解款行</th>
+                    <th style="width: 20%;">帳號</th>
+                    <th style="width: 20%;">戶名</th>
+                    <th class="action-cell">功能</th>
+                </tr>
+            </thead>
+            <tbody id="vendorTableBody"></tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    const fmt = new Intl.NumberFormat('zh-TW');
+    let db = JSON.parse(localStorage.getItem('paymentRecords')) || [];
+    let vendors = JSON.parse(localStorage.getItem('vendorList')) || [];
+    let currentSortOrder = 'asc';
+    let draggedRowId = null;
+
+    function generateExcelFile(headers, data, filename) {
+        let xml = '<?xml version="1.0" encoding="utf-8"?><?mso-application progid="Excel.Sheet"?>';
+        xml += '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">';
+        xml += '<Worksheet ss:Name="Sheet1"><Table>';
+        xml += '<Row>';
+        headers.forEach(h => xml += `<Cell><Data ss:Type="String">${h}</Data></Cell>`);
+        xml += '</Row>';
+        data.forEach(row => {
+            xml += '<Row>';
+            row.forEach(cell => {
+                const isNumber = !isNaN(cell) && cell !== "" && typeof cell === 'number';
+                const type = isNumber ? 'Number' : 'String';
+                xml += `<Cell><Data ss:Type="${type}">${cell}</Data></Cell>`;
+            });
+            xml += '</Row>';
+        });
+        xml += '</Table></Worksheet></Workbook>';
+        const blob = new Blob([xml], { type: "application/vnd.ms-excel" });
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = filename + ".xls";
+        link.click();
+    }
+
+    function searchVendor(val) {
+        const resultsDiv = document.getElementById('searchResults');
+        if (!val) { resultsDiv.style.display = 'none'; return; }
+        const filtered = vendors.filter(v => v.name.includes(val) || v.owner.includes(val) || (v.account && v.account.includes(val)));
+        if (filtered.length > 0) {
+            resultsDiv.innerHTML = filtered.map(v => `
+                <div class="search-item" onclick="selectVendor('${v.name}', '${v.bankCode}', '${v.account}', '${v.owner}')">
+                    <div><strong>${v.name}</strong> (${v.owner})</div>
+                    <div class="search-subtext">行庫：${v.bankCode || ''} | 帳號：${v.account || ''}</div>
+                </div>
+            `).join('');
+            resultsDiv.style.display = 'block';
+        } else {
+            resultsDiv.style.display = 'none';
+        }
+    }
+
+    function selectVendor(name, bank, acc, owner) {
+        document.getElementById('vendorSearch').value = name;
+        document.getElementById('tempBankCode').value = bank || "";
+        document.getElementById('tempAccount').value = acc || "";
+        document.getElementById('tempOwner').value = owner || "";
+        document.getElementById('searchResults').style.display = 'none';
+    }
+
+    function exportFullBackup() {
+        const backupData = { paymentRecords: db, vendorList: vendors, backupDate: new Date().toISOString() };
+        const blob = new Blob([JSON.stringify(backupData)], { type: 'application/json' });
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = `出款系統全備份_${new Date().toLocaleDateString().replace(/\//g,'-')}.json`;
+        link.click();
+    }
+
+    function importFullBackup(input) {
+        const file = input.files[0];
+        if (!file) return;
+        if (!confirm("還原系統將會蓋掉目前電腦中的所有資料，確定要繼續嗎？")) { input.value = ""; return; }
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const imported = JSON.parse(e.target.result);
+                if (imported.paymentRecords && imported.vendorList) {
+                    db = imported.paymentRecords;
+                    vendors = imported.vendorList;
+                    localStorage.setItem('paymentRecords', JSON.stringify(db));
+                    localStorage.setItem('vendorList', JSON.stringify(vendors));
+                    alert("系統還原成功！");
+                    location.reload();
+                } else { alert("備份檔案格式不正確。"); }
+            } catch (err) { alert("讀取檔案失敗：" + err); }
+        };
+        reader.readAsText(file);
+    }
+
+    function autoFillRecordsByOwner() {
+        let count = 0;
+        db.forEach(item => {
+            if ((!item.bank || !item.acc) && item.owner) {
+                const match = vendors.find(v => v.owner === item.owner.trim());
+                if (match) {
+                    item.bank = match.bankCode;
+                    item.acc = match.account;
+                    count++;
+                }
+            }
+        });
+        if (count > 0) {
+            localStorage.setItem('paymentRecords', JSON.stringify(db));
+            renderTable();
+            alert(`成功補齊 ${count} 筆匯款資料！`);
+        } else { alert("未找到相符戶名的廠商資料。"); }
+    }
+
+    function manualAddVendor() {
+        const name = document.getElementById('newVName').value.trim();
+        const bank = document.getElementById('newVBank').value.trim();
+        const acc = document.getElementById('newVAcc').value.trim();
+        const owner = document.getElementById('newVOwner').value.trim();
+        if(!name || !acc) { alert("廠商名稱與帳號為必填！"); return; }
+        vendors.push({ id: Date.now() + Math.random(), name, bankCode: bank, account: acc, owner });
+        localStorage.setItem('vendorList', JSON.stringify(vendors));
+        renderVendorTable();
+        ['newVName', 'newVBank', 'newVAcc', 'newVOwner'].forEach(id => document.getElementById(id).value = "");
+        alert("廠商新增成功！");
+    }
+
+    function importVendorCSV(input) {
+        const file = input.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const text = e.target.result;
+            const rows = text.split('\n').filter(r => r.trim() !== "");
+            rows.slice(1).forEach(row => {
+                const cols = row.split(',').map(s => s.trim().replace(/^="|"$/g, '').replace(/^'/, ''));
+                if (cols.length >= 4) {
+                    vendors.push({ id: Date.now() + Math.random(), name: cols[0], bankCode: cols[1], account: cols[2], owner: cols[3] });
+                }
+            });
+            localStorage.setItem('vendorList', JSON.stringify(vendors));
+            renderVendorTable();
+            alert("匯入成功！");
+            input.value = "";
+        };
+        reader.readAsText(file, 'UTF-8');
+    }
+
+    function exportVendorExcel() {
+        if(vendors.length === 0) return alert("目前無廠商資料可匯出");
+        const headers = ["廠商名稱", "解款行", "帳號", "戶名"];
+        const data = vendors.map(v => [v.name, v.bankCode, v.account, v.owner]);
+        generateExcelFile(headers, data, `廠商資料庫_${new Date().toLocaleDateString().replace(/\//g,'-')}`);
+    }
+
+    function renderVendorTable() {
+        const tbody = document.getElementById('vendorTableBody');
+        tbody.innerHTML = vendors.map(v => `
+            <tr>
+                <td><span class="editable" onblur="updateVendorField('${v.id}', 'name', this.innerText)" contenteditable="true">${v.name}</span></td>
+                <td><span class="editable" onblur="updateVendorField('${v.id}', 'bankCode', this.innerText)" contenteditable="true">${v.bankCode || ''}</span></td>
+                <td><span class="editable" onblur="updateVendorField('${v.id}', 'account', this.innerText)" contenteditable="true">${v.account || ''}</span></td>
+                <td><span class="editable" onblur="updateVendorField('${v.id}', 'owner', this.innerText)" contenteditable="true">${v.owner || ''}</span></td>
+                <td class="action-cell">
+                    <button class="btn-del" onclick="deleteVendor('${v.id}')">×</button>
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    function updateVendorField(id, field, value) {
+        const idx = vendors.findIndex(v => v.id == id);
+        if(idx !== -1) { vendors[idx][field] = value.trim(); localStorage.setItem('vendorList', JSON.stringify(vendors)); }
+    }
+
+    function deleteVendor(id) {
+        if(confirm("確定刪除此廠商？")) { vendors = vendors.filter(v => v.id != id); localStorage.setItem('vendorList', JSON.stringify(vendors)); renderVendorTable(); }
+    }
+
+    function clearVendors() {
+        if(confirm("確定清空所有廠商資料？")) { vendors = []; localStorage.removeItem('vendorList'); renderVendorTable(); }
+    }
+
+    function switchPage(pageId, btn) {
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById(pageId).classList.add('active');
+        btn.classList.add('active');
+        if(pageId === 'listPage') { initMonthFilter(); renderTable(); }
+        if(pageId === 'vendorPage') { renderVendorTable(); }
+    }
+
+    function getMinguoToday() {
+        // 先看有沒有記憶日期
+        const savedDate = localStorage.getItem('lastUsedDate');
+        if(savedDate) return savedDate;
+        
+        let d = new Date();
+        const y = d.getFullYear() - 1911; const m = (d.getMonth() + 1).toString().padStart(2, '0'); const day = d.getDate().toString().padStart(2, '0');
+        return `${y}${m}${day}`;
+    }
+
+    function saveData() {
+        const amount = parseFloat(document.getElementById('rawAmount').value) || 0;
+        const dateStr = document.getElementById('remittanceDate').value || getMinguoToday();
+        const accountInfo = document.getElementById('companyAccountSelect').value.split('|');
+        const companyName = accountInfo[0];
+        const companyAcc = accountInfo[1];
+        
+        if (amount <= 0) { alert("請輸入正確金額"); return; }
+        
+        // 記憶這次填寫的日期
+        localStorage.setItem('lastUsedDate', dateStr);
+        
+        const timestamp = Date.now();
+        const saveMonthLabel = `${new Date().getFullYear()}.${(new Date().getMonth()+1).toString().padStart(2, '0')}`;
+        const workNote = document.getElementById('workNote').value || "日常出款";
+
+        const record = { 
+            id: timestamp,
+            date: dateStr,
+            desc: workNote,
+            amount: amount,
+            company: companyName,
+            companyAcc: companyAcc,
+            bank: document.getElementById('tempBankCode').value || "", 
+            acc: document.getElementById('tempAccount').value || "", 
+            owner: document.getElementById('tempOwner').value || "",
+            saveMonth: saveMonthLabel
+        };
+        
+        db.push(record);
+        localStorage.setItem('paymentRecords', JSON.stringify(db));
+        alert("資料儲存成功！");
+        clearInputFields();
+    }
+
+    function clearInputFields() {
+        ['vendorSearch', 'workNote', 'rawAmount', 'tempBankCode', 'tempAccount', 'tempOwner'].forEach(id => {
+            const el = document.getElementById(id);
+            if(el) el.value = "";
+        });
+        // 日期欄位維持上次輸入的值（由 localStorage 控制）
+        document.getElementById('remittanceDate').value = getMinguoToday();
+    }
+
+    function toggleSort(field) {
+        currentSortOrder = (currentSortOrder === 'asc') ? 'desc' : 'asc';
+        db.sort((a, b) => {
+            let valA = String(a[field] || "");
+            let valB = String(b[field] || "");
+            return currentSortOrder === 'asc' ? valA.localeCompare(valB, 'zh-TW') : valB.localeCompare(valA, 'zh-TW');
+        });
+        renderTable();
+    }
+
+    // 拖曳排序實作
+    function handleDragStart(e, id) {
+        draggedRowId = id;
+        e.target.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+    }
+
+    function handleDragOver(e) {
+        e.preventDefault();
+        const tr = e.target.closest('tr');
+        if (tr && tr.dataset.id !== String(draggedRowId)) {
+            tr.classList.add('drag-over');
+        }
+    }
+
+    function handleDragLeave(e) {
+        const tr = e.target.closest('tr');
+        if (tr) tr.classList.remove('drag-over');
+    }
+
+    function handleDrop(e, targetId) {
+        e.preventDefault();
+        const tr = e.target.closest('tr');
+        if (tr) tr.classList.remove('drag-over');
+        
+        if (draggedRowId === targetId) return;
+
+        const fromIdx = db.findIndex(item => item.id == draggedRowId);
+        const toIdx = db.findIndex(item => item.id == targetId);
+
+        if (fromIdx !== -1 && toIdx !== -1) {
+            const [movedItem] = db.splice(fromIdx, 1);
+            db.splice(toIdx, 0, movedItem);
+            localStorage.setItem('paymentRecords', JSON.stringify(db));
+            renderTable();
+        }
+    }
+
+    function handleDragEnd(e) {
+        e.target.classList.remove('dragging');
+        const rows = document.querySelectorAll('#tableBody tr');
+        rows.forEach(r => r.classList.remove('drag-over'));
+    }
+
+    // 勾選功能相關
+    function toggleAllCheckboxes(source) {
+        const checkboxes = document.querySelectorAll('.item-check');
+        checkboxes.forEach(cb => cb.checked = source.checked);
+        updateCheckedSum();
+    }
+
+    function updateCheckedSum() {
+        const checkboxes = document.querySelectorAll('.item-check');
+        let total = 0;
+        checkboxes.forEach(cb => {
+            if(cb.checked) {
+                const recordId = cb.dataset.id;
+                const item = db.find(i => i.id == recordId);
+                if(item) total += item.amount;
+            }
+        });
+        document.getElementById('checkedSum').innerText = `$${fmt.format(total)}`;
+    }
+
+    function renderTable() {
+        const filterComp = document.getElementById('filterCompany').value;
+        const filterMon = document.getElementById('filterMonth').value;
+        const tbody = document.getElementById('tableBody');
+        tbody.innerHTML = "";
+        
+        let counter = 1;
+        db.filter(item => (filterComp === "全部" || item.company === filterComp) && (filterMon === "全部" || item.saveMonth === filterMon))
+          .forEach(item => {
+            const tr = document.createElement('tr');
+            tr.draggable = true;
+            tr.dataset.id = item.id;
+            
+            tr.ondragstart = (e) => handleDragStart(e, item.id);
+            tr.ondragover = (e) => handleDragOver(e);
+            tr.ondragleave = (e) => handleDragLeave(e);
+            tr.ondrop = (e) => handleDrop(e, item.id);
+            tr.ondragend = (e) => handleDragEnd(e);
+
+            // 清洗日期格式
+            const displayDate = String(item.date).replace(/\//g, '');
+
+            tr.innerHTML = `
+                <td style="text-align:center;"><input type="checkbox" class="item-check" data-id="${item.id}" checked onclick="updateCheckedSum()"></td>
+                <td style="text-align:center; color:#999; cursor:move;">${counter++}</td>
+                <td><span class="editable" onblur="updateField('${item.id}', 'date', this.innerText)" contenteditable="true">${displayDate}</span></td>
+                <td><span class="editable" onblur="updateField('${item.id}', 'desc', this.innerText)" contenteditable="true">${item.desc}</span></td>
+                <td class="amount-cell"><span class="editable" onblur="updateAmountField('${item.id}', this)" contenteditable="true">${fmt.format(item.amount)}</span></td>
+                <td><span class="editable" onblur="updateField('${item.id}', 'bank', this.innerText)" contenteditable="true">${item.bank || ''}</span></td>
+                <td><span class="editable" onblur="updateField('${item.id}', 'acc', this.innerText)" contenteditable="true">${item.acc || ''}</span></td>
+                <td><span class="editable" onblur="updateField('${item.id}', 'owner', this.innerText)" contenteditable="true">${item.owner || ''}</span></td>
+                <td><span class="editable" onblur="updateField('${item.id}', 'company', this.innerText)" contenteditable="true">${item.company || ''}</span></td>
+                <td class="action-cell">
+                    <button class="btn-del" onclick="deleteRecord('${item.id}')">×</button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+        updateCheckedSum();
+        // 如果全選框被取消，重新勾回預設
+        document.getElementById('selectAll').checked = true;
+    }
+
+    function updateField(id, field, value) {
+        const idx = db.findIndex(i => i.id == id);
+        if(idx !== -1) { db[idx][field] = value.trim(); localStorage.setItem('paymentRecords', JSON.stringify(db)); }
+    }
+
+    function updateAmountField(id, el) {
+        const idx = db.findIndex(i => i.id == id);
+        if(idx !== -1) {
+            let val = parseInt(el.innerText.replace(/,/g, '')) || 0;
+            db[idx].amount = val; localStorage.setItem('paymentRecords', JSON.stringify(db));
+            el.innerText = fmt.format(val);
+            updateCheckedSum();
+        }
+    }
+
+    function deleteRecord(id) { if(confirm("確定刪除？")) { db = db.filter(i => i.id != id); localStorage.setItem('paymentRecords', JSON.stringify(db)); renderTable(); } }
+    function clearData() { if(confirm("【警告】確定要清空所有的登記資料嗎？此操作不可還原。")) { db = []; localStorage.removeItem('paymentRecords'); renderTable(); } }
+
+    function exportBankExcel() {
+        const filterComp = document.getElementById('filterCompany').value;
+        const filterMon = document.getElementById('filterMonth').value;
+        const filtered = db.filter(item => (filterComp === "全部" || item.company === filterComp) && (filterMon === "全部" || item.saveMonth === filterMon));
+        if(filtered.length === 0) return alert("目前無資料可匯出");
+        const headers = ["日期", "解款行", "帳號", "戶名", "金額", "出款帳號"];
+        const data = filtered.map(i => [String(i.date).replace(/\//g, ''), i.bank, i.acc, i.owner, i.amount, i.companyAcc]);
+        generateExcelFile(headers, data, `匯款資料_${filterMon}_${filterComp}`);
+    }
+
+    function exportClaimExcel() {
+        const filterComp = document.getElementById('filterCompany').value;
+        const filterMon = document.getElementById('filterMonth').value;
+        const filtered = db.filter(item => (filterComp === "全部" || item.company === filterComp) && (filterMon === "全部" || item.saveMonth === filterMon));
+        if(filtered.length === 0) return alert("目前無資料可匯出");
+        const headers = ["日期", "出款方", "明細內容", "金額", "收款人"];
+        const data = filtered.map(i => [String(i.date).replace(/\//g, ''), i.company, i.desc, i.amount, i.owner]);
+        generateExcelFile(headers, data, `出款明細_${filterMon}_${filterComp}`);
+    }
+
+    function initMonthFilter() {
+        const months = new Set();
+        db.forEach(item => { if(item.saveMonth) months.add(item.saveMonth); });
+        const now = new Date();
+        const currentLabel = `${now.getFullYear()}.${(now.getMonth()+1).toString().padStart(2, '0')}`;
+        months.add(currentLabel);
+        const sorted = Array.from(months).sort().reverse();
+        document.getElementById('filterMonth').innerHTML = `<option value="全部">全部月份</option>` + sorted.map(m => `<option value="${m}">${m}</option>`).join('');
+        document.getElementById('filterMonth').value = currentLabel;
+    }
+
+    document.addEventListener('click', e => { if (!e.target.closest('.col')) document.getElementById('searchResults').style.display = 'none'; });
+    window.onload = () => { 
+        document.getElementById('remittanceDate').value = getMinguoToday();
+        initMonthFilter(); 
+    };
+</script>
+
+</body>
+</html>
