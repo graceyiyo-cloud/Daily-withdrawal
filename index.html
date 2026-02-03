@@ -314,28 +314,47 @@
         document.getElementById('searchResults').style.display = 'none';
     }
 
-    // 明細建議功能
+    // 明細建議功能 (增量更新：加入金額自動填入)
     function suggestWorkNote(val) {
         const resultsDiv = document.getElementById('workNoteResults');
         if (!val) { resultsDiv.style.display = 'none'; return; }
         
-        const historyNotes = [...new Set(db.map(item => item.desc))];
-        const filtered = historyNotes.filter(note => note && note.startsWith(val));
+        // 取得所有唯一摘要及其最常出現的金額
+        const noteMap = {};
+        db.forEach(item => {
+            if (item.desc && item.desc.includes(val)) {
+                if (!noteMap[item.desc]) {
+                    noteMap[item.desc] = { amounts: {} };
+                }
+                noteMap[item.desc].amounts[item.amount] = (noteMap[item.desc].amounts[item.amount] || 0) + 1;
+            }
+        });
+
+        const filtered = Object.keys(noteMap);
         
         if (filtered.length > 0) {
-            resultsDiv.innerHTML = filtered.map(note => `
-                <div class="search-item" onclick="selectWorkNote('${note}')">
+            resultsDiv.innerHTML = filtered.map(note => {
+                // 找出該摘要出現次數最多的金額
+                const amounts = noteMap[note].amounts;
+                const mostCommonAmount = Object.keys(amounts).reduce((a, b) => amounts[a] > amounts[b] ? a : b);
+                
+                return `
+                <div class="search-item" onclick="selectWorkNote('${note}', ${mostCommonAmount})">
                     <strong>${note}</strong>
+                    <div class="search-subtext">常規金額：$${fmt.format(mostCommonAmount)}</div>
                 </div>
-            `).join('');
+            `}).join('');
             resultsDiv.style.display = 'block';
         } else {
             resultsDiv.style.display = 'none';
         }
     }
 
-    function selectWorkNote(note) {
+    function selectWorkNote(note, amount) {
         document.getElementById('workNote').value = note;
+        if (amount) {
+            document.getElementById('rawAmount').value = amount;
+        }
         document.getElementById('workNoteResults').style.display = 'none';
     }
 
@@ -503,7 +522,6 @@
         
         db.push(record);
         localStorage.setItem('paymentRecords_v2', JSON.stringify(db));
-        // 移除 alert 提示
         clearInputFields();
     }
 
@@ -648,7 +666,6 @@
     function exportBankExcel() {
         const filterComp = document.getElementById('filterCompany').value;
         const filterMon = document.getElementById('filterMonth').value;
-        // 增量更新：如果沒有收款戶名（表示沒選收款方），則不匯出該行明細
         const filtered = db.filter(item => 
             (filterComp === "全部" || item.company === filterComp) && 
             (filterMon === "全部" || item.saveMonth === filterMon) &&
@@ -670,12 +687,9 @@
         generateExcelFile(headers, data, `出款明細_${filterMon}_${filterComp}`);
     }
 
-    // 匯出取條明細
     function exportWithdrawalSlipExcel() {
         const filterComp = document.getElementById('filterCompany').value;
         const filterMon = document.getElementById('filterMonth').value;
-        
-        // 取得目前篩選且「有勾選」的項目
         const checkedIds = Array.from(document.querySelectorAll('.item-check:checked')).map(cb => cb.dataset.id);
         const filtered = db.filter(item => 
             (filterComp === "全部" || item.company === filterComp) && 
@@ -685,7 +699,6 @@
 
         if(filtered.length === 0) return alert("目前無勾選資料可匯出");
 
-        // 按出款方分組統計
         const summaryMap = {};
         filtered.forEach(item => {
             if(!summaryMap[item.company]) {
