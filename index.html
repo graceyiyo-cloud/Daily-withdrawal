@@ -314,12 +314,11 @@
         document.getElementById('searchResults').style.display = 'none';
     }
 
-    // 明細建議功能 (增量更新：加入金額自動填入)
+    // 明細建議功能 (具備金額自動填入)
     function suggestWorkNote(val) {
         const resultsDiv = document.getElementById('workNoteResults');
         if (!val) { resultsDiv.style.display = 'none'; return; }
         
-        // 取得所有唯一摘要及其最常出現的金額
         const noteMap = {};
         db.forEach(item => {
             if (item.desc && item.desc.includes(val)) {
@@ -334,7 +333,6 @@
         
         if (filtered.length > 0) {
             resultsDiv.innerHTML = filtered.map(note => {
-                // 找出該摘要出現次數最多的金額
                 const amounts = noteMap[note].amounts;
                 const mostCommonAmount = Object.keys(amounts).reduce((a, b) => amounts[a] > amounts[b] ? a : b);
                 
@@ -666,12 +664,17 @@
     function exportBankExcel() {
         const filterComp = document.getElementById('filterCompany').value;
         const filterMon = document.getElementById('filterMonth').value;
+        
+        // 增量更新：僅匯出目前畫面有勾選且具備收款方的資料
+        const checkedIds = Array.from(document.querySelectorAll('.item-check:checked')).map(cb => cb.dataset.id);
         const filtered = db.filter(item => 
             (filterComp === "全部" || item.company === filterComp) && 
             (filterMon === "全部" || item.saveMonth === filterMon) &&
+            checkedIds.includes(String(item.id)) &&
             (item.owner && item.owner.trim() !== "")
         );
-        if(filtered.length === 0) return alert("目前無具備收款方的資料可匯出");
+
+        if(filtered.length === 0) return alert("目前無勾選且具備收款方的資料可匯出");
         const headers = ["日期", "解款行", "帳號", "戶名", "金額", "出款帳號"];
         const data = filtered.map(i => [String(i.date).replace(/\//g, ''), i.bank, i.acc, i.owner, i.amount, i.companyAcc]);
         generateExcelFile(headers, data, `匯款資料_${filterMon}_${filterComp}`);
@@ -680,8 +683,16 @@
     function exportClaimExcel() {
         const filterComp = document.getElementById('filterCompany').value;
         const filterMon = document.getElementById('filterMonth').value;
-        const filtered = db.filter(item => (filterComp === "全部" || item.company === filterComp) && (filterMon === "全部" || item.saveMonth === filterMon));
-        if(filtered.length === 0) return alert("目前無資料可匯出");
+        
+        // 增量更新：僅匯出目前畫面有勾選的資料
+        const checkedIds = Array.from(document.querySelectorAll('.item-check:checked')).map(cb => cb.dataset.id);
+        const filtered = db.filter(item => 
+            (filterComp === "全部" || item.company === filterComp) && 
+            (filterMon === "全部" || item.saveMonth === filterMon) &&
+            checkedIds.includes(String(item.id))
+        );
+
+        if(filtered.length === 0) return alert("目前無勾選資料可匯出");
         const headers = ["日期", "出款方", "明細內容", "金額", "收款人"];
         const data = filtered.map(i => [String(i.date).replace(/\//g, ''), i.company, i.desc, i.amount, i.owner]);
         generateExcelFile(headers, data, `出款明細_${filterMon}_${filterComp}`);
@@ -690,6 +701,7 @@
     function exportWithdrawalSlipExcel() {
         const filterComp = document.getElementById('filterCompany').value;
         const filterMon = document.getElementById('filterMonth').value;
+        
         const checkedIds = Array.from(document.querySelectorAll('.item-check:checked')).map(cb => cb.dataset.id);
         const filtered = db.filter(item => 
             (filterComp === "全部" || item.company === filterComp) && 
