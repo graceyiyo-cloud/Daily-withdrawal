@@ -648,8 +648,13 @@
     function exportBankExcel() {
         const filterComp = document.getElementById('filterCompany').value;
         const filterMon = document.getElementById('filterMonth').value;
-        const filtered = db.filter(item => (filterComp === "全部" || item.company === filterComp) && (filterMon === "全部" || item.saveMonth === filterMon));
-        if(filtered.length === 0) return alert("目前無資料可匯出");
+        // 增量更新：如果沒有收款戶名（表示沒選收款方），則不匯出該行明細
+        const filtered = db.filter(item => 
+            (filterComp === "全部" || item.company === filterComp) && 
+            (filterMon === "全部" || item.saveMonth === filterMon) &&
+            (item.owner && item.owner.trim() !== "")
+        );
+        if(filtered.length === 0) return alert("目前無具備收款方的資料可匯出");
         const headers = ["日期", "解款行", "帳號", "戶名", "金額", "出款帳號"];
         const data = filtered.map(i => [String(i.date).replace(/\//g, ''), i.bank, i.acc, i.owner, i.amount, i.companyAcc]);
         generateExcelFile(headers, data, `匯款資料_${filterMon}_${filterComp}`);
