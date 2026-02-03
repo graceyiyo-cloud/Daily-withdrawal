@@ -245,7 +245,8 @@
 
 <script>
     const fmt = new Intl.NumberFormat('zh-TW');
-    let db = JSON.parse(localStorage.getItem('paymentRecords')) || [];
+    // 修改 Storage Key 為 v2
+    let db = JSON.parse(localStorage.getItem('paymentRecords_v2')) || [];
     let vendors = JSON.parse(localStorage.getItem('vendorList')) || [];
     let currentSortOrder = 'asc';
     let draggedRowId = null;
@@ -319,7 +320,7 @@
                 if (imported.paymentRecords && imported.vendorList) {
                     db = imported.paymentRecords;
                     vendors = imported.vendorList;
-                    localStorage.setItem('paymentRecords', JSON.stringify(db));
+                    localStorage.setItem('paymentRecords_v2', JSON.stringify(db));
                     localStorage.setItem('vendorList', JSON.stringify(vendors));
                     alert("系統還原成功！");
                     location.reload();
@@ -342,7 +343,7 @@
             }
         });
         if (count > 0) {
-            localStorage.setItem('paymentRecords', JSON.stringify(db));
+            localStorage.setItem('paymentRecords_v2', JSON.stringify(db));
             renderTable();
             alert(`成功補齊 ${count} 筆匯款資料！`);
         } else { alert("未找到相符戶名的廠商資料。"); }
@@ -406,11 +407,18 @@
 
     function updateVendorField(id, field, value) {
         const idx = vendors.findIndex(v => v.id == id);
-        if(idx !== -1) { vendors[idx][field] = value.trim(); localStorage.setItem('vendorList', JSON.stringify(vendors)); }
+        if(idx !== -1) { 
+            vendors[idx][field] = value.trim(); 
+            localStorage.setItem('vendorList', JSON.stringify(vendors)); 
+        }
     }
 
     function deleteVendor(id) {
-        if(confirm("確定刪除此廠商？")) { vendors = vendors.filter(v => v.id != id); localStorage.setItem('vendorList', JSON.stringify(vendors)); renderVendorTable(); }
+        if(confirm("確定刪除此廠商？")) { 
+            vendors = vendors.filter(v => v.id != id); 
+            localStorage.setItem('vendorList', JSON.stringify(vendors)); 
+            renderVendorTable(); 
+        }
     }
 
     function clearVendors() {
@@ -427,7 +435,6 @@
     }
 
     function getMinguoToday() {
-        // 先看有沒有記憶日期
         const savedDate = localStorage.getItem('lastUsedDate');
         if(savedDate) return savedDate;
         
@@ -445,7 +452,6 @@
         
         if (amount <= 0) { alert("請輸入正確金額"); return; }
         
-        // 記憶這次填寫的日期
         localStorage.setItem('lastUsedDate', dateStr);
         
         const timestamp = Date.now();
@@ -466,7 +472,7 @@
         };
         
         db.push(record);
-        localStorage.setItem('paymentRecords', JSON.stringify(db));
+        localStorage.setItem('paymentRecords_v2', JSON.stringify(db));
         alert("資料儲存成功！");
         clearInputFields();
     }
@@ -476,7 +482,6 @@
             const el = document.getElementById(id);
             if(el) el.value = "";
         });
-        // 日期欄位維持上次輸入的值（由 localStorage 控制）
         document.getElementById('remittanceDate').value = getMinguoToday();
     }
 
@@ -490,7 +495,6 @@
         renderTable();
     }
 
-    // 拖曳排序實作
     function handleDragStart(e, id) {
         draggedRowId = id;
         e.target.classList.add('dragging');
@@ -523,7 +527,7 @@
         if (fromIdx !== -1 && toIdx !== -1) {
             const [movedItem] = db.splice(fromIdx, 1);
             db.splice(toIdx, 0, movedItem);
-            localStorage.setItem('paymentRecords', JSON.stringify(db));
+            localStorage.setItem('paymentRecords_v2', JSON.stringify(db));
             renderTable();
         }
     }
@@ -534,7 +538,6 @@
         rows.forEach(r => r.classList.remove('drag-over'));
     }
 
-    // 勾選功能相關
     function toggleAllCheckboxes(source) {
         const checkboxes = document.querySelectorAll('.item-check');
         checkboxes.forEach(cb => cb.checked = source.checked);
@@ -573,7 +576,6 @@
             tr.ondrop = (e) => handleDrop(e, item.id);
             tr.ondragend = (e) => handleDragEnd(e);
 
-            // 清洗日期格式
             const displayDate = String(item.date).replace(/\//g, '');
 
             tr.innerHTML = `
@@ -593,27 +595,26 @@
             tbody.appendChild(tr);
         });
         updateCheckedSum();
-        // 如果全選框被取消，重新勾回預設
         document.getElementById('selectAll').checked = true;
     }
 
     function updateField(id, field, value) {
         const idx = db.findIndex(i => i.id == id);
-        if(idx !== -1) { db[idx][field] = value.trim(); localStorage.setItem('paymentRecords', JSON.stringify(db)); }
+        if(idx !== -1) { db[idx][field] = value.trim(); localStorage.setItem('paymentRecords_v2', JSON.stringify(db)); }
     }
 
     function updateAmountField(id, el) {
         const idx = db.findIndex(i => i.id == id);
         if(idx !== -1) {
             let val = parseInt(el.innerText.replace(/,/g, '')) || 0;
-            db[idx].amount = val; localStorage.setItem('paymentRecords', JSON.stringify(db));
+            db[idx].amount = val; localStorage.setItem('paymentRecords_v2', JSON.stringify(db));
             el.innerText = fmt.format(val);
             updateCheckedSum();
         }
     }
 
-    function deleteRecord(id) { if(confirm("確定刪除？")) { db = db.filter(i => i.id != id); localStorage.setItem('paymentRecords', JSON.stringify(db)); renderTable(); } }
-    function clearData() { if(confirm("【警告】確定要清空所有的登記資料嗎？此操作不可還原。")) { db = []; localStorage.removeItem('paymentRecords'); renderTable(); } }
+    function deleteRecord(id) { if(confirm("確定刪除？")) { db = db.filter(i => i.id != id); localStorage.setItem('paymentRecords_v2', JSON.stringify(db)); renderTable(); } }
+    function clearData() { if(confirm("【警告】確定要清空所有的登記資料嗎？此操作不可還原。")) { db = []; localStorage.removeItem('paymentRecords_v2'); renderTable(); } }
 
     function exportBankExcel() {
         const filterComp = document.getElementById('filterCompany').value;
