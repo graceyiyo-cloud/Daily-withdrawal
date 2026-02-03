@@ -34,7 +34,7 @@
         
         h2 { text-align: center; color: var(--primary); font-weight: 500; margin-bottom: 20px; letter-spacing: 1px; }
         .row { display: flex; gap: 10px; margin-bottom: 15px; align-items: flex-end; }
-        .col { flex: 1; display: flex; flex-direction: column; }
+        .col { flex: 1; display: flex; flex-direction: column; position: relative; }
         
         label { font-size: 0.8rem; margin-bottom: 5px; color: #999; }
         input, select { padding: 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 1rem; outline: none; background: #FAFAFA; width: 100%; box-sizing: border-box; }
@@ -69,10 +69,20 @@
         .btn-del { color: var(--danger); border: none; background: none; cursor: pointer; font-weight: bold; font-size: 1.2rem; line-height: 1; vertical-align: middle; }
         
         .filter-row { margin-bottom: 15px; display: flex; flex-wrap: wrap; align-items: center; gap: 15px; justify-content: space-between; }
-        .filter-group { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+        .filter-group { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 
         .summary-box { background: #fdfdfd; border: 1px solid var(--primary); padding: 15px; border-radius: 10px; margin-top: 10px; font-weight: bold; display: flex; justify-content: flex-end; align-items: center; gap: 10px; }
         .summary-amount { color: var(--danger); font-size: 1.2rem; font-family: monospace; }
+
+        /* 搜尋建議介面強化 */
+        .search-results { position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid var(--border); border-radius: 8px; z-index: 100; max-height: 300px; overflow-y: auto; box-shadow: 0 10px 25px rgba(0,0,0,0.15); display: none; }
+        .search-item { padding: 12px 15px; cursor: pointer; border-bottom: 1px solid #f0f0f0; transition: 0.2s; }
+        .search-item:last-child { border-bottom: none; }
+        .search-item:hover { background: #f8f9f2; }
+        .search-item strong { color: var(--primary); font-size: 0.95rem; }
+        .search-subtext { color: #888; font-size: 0.75rem; margin-top: 4px; padding: 4px 8px; background: #f5f5f5; border-radius: 4px; display: inline-block; }
+
+        .vendor-form { background: #F9F9F8; padding: 15px; border-radius: 10px; border: 1px solid #EEE; margin-bottom: 20px; }
 
         /* 拖曳排序相關樣式 */
         tr.dragging { opacity: 0.5; background-color: #f0f0f0; }
@@ -115,7 +125,7 @@
         </div>
 
         <div class="row">
-            <div class="col" style="position: relative;">
+            <div class="col">
                 <label>搜尋廠商 (收款方)</label>
                 <input type="text" id="vendorSearch" placeholder="搜尋廠商關鍵字..." oninput="searchVendor(this.value)">
                 <div id="searchResults" class="search-results"></div>
@@ -128,7 +138,8 @@
         <div class="row">
             <div class="col">
                 <label>內容摘要 (明細)</label>
-                <input type="text" id="workNote" placeholder="例如：辦公室文具採購">
+                <input type="text" id="workNote" placeholder="例如：辦公室文具採購" oninput="suggestWorkNote(this.value)" autocomplete="off">
+                <div id="workNoteResults" class="search-results"></div>
             </div>
         </div>
 
@@ -169,9 +180,10 @@
             </div>
             <div class="filter-group">
                 <button class="btn-info" onclick="autoFillRecordsByOwner()">按戶名補齊資料</button>
-                <button class="btn-info" style="background: var(--danger); border-color: var(--danger);" onclick="clearData()">清空所有資料</button>
+                <button class="btn-info" style="background: var(--dark);" onclick="exportWithdrawalSlipExcel()">匯出取條明細</button>
                 <button class="btn-info" style="background: var(--dark);" onclick="exportBankExcel()">匯出匯款資料</button>
                 <button class="btn-excel" onclick="exportClaimExcel()">匯出明細</button>
+                <button class="btn-info" style="background: var(--danger); border-color: var(--danger);" onclick="clearData()">清空所有資料</button>
             </div>
         </div>
         <table id="recordTable">
@@ -184,7 +196,7 @@
                     <th style="width: 90px;">金額</th>
                     <th style="width: 8.5ch;">解款行</th>
                     <th style="width: 17ch;">收款帳號</th>
-                    <th style="width: 20em;">收款戶名</th>
+                    <th style="width: 10em;">收款戶名</th>
                     <th style="width: 10em;">出款帳戶</th>
                     <th class="action-cell">功能</th>
                 </tr>
@@ -221,11 +233,13 @@
                 <input type="file" id="csvFileInput" accept=".csv" style="display:none" onchange="importVendorCSV(this)">
                 <button class="btn-excel" onclick="document.getElementById('csvFileInput').click()">批次匯入 CSV</button>
                 <button class="btn-excel" style="background: #5da9ad;" onclick="exportVendorExcel()">匯出廠商清單</button>
-                <button class="btn-info" style="background: var(--dark); margin-bottom: 15px;" onclick="exportFullBackup()">備份全系統資料 (.json)</button>
+                <button class="btn-info" style="background: var(--dark);" onclick="exportFullBackup()">備份全系統資料 (.json)</button>
                 <input type="file" id="backupFileInput" accept=".json" style="display:none" onchange="importFullBackup(this)">
-                <button class="btn-info" style="background: var(--accent); margin-bottom: 15px;" onclick="document.getElementById('backupFileInput').click()">還原系統資料</button>
+                <button class="btn-info" style="background: var(--accent);" onclick="document.getElementById('backupFileInput').click()">還原系統資料</button>
             </div>
-            <button class="btn-reset" onclick="clearVendors()" style="color: var(--danger); margin:0; width: auto;">清空廠商庫</button>
+            <div class="filter-group" style="margin-top: 10px;">
+                <button class="btn-reset" onclick="clearVendors()" style="color: var(--danger); margin:0; width: auto; border-color: var(--danger);">清空廠商庫</button>
+            </div>
         </div>
         
         <table id="vendorTable">
@@ -245,7 +259,6 @@
 
 <script>
     const fmt = new Intl.NumberFormat('zh-TW');
-    // 修改 Storage Key 為 v2
     let db = JSON.parse(localStorage.getItem('paymentRecords_v2')) || [];
     let vendors = JSON.parse(localStorage.getItem('vendorList')) || [];
     let currentSortOrder = 'asc';
@@ -278,11 +291,12 @@
     function searchVendor(val) {
         const resultsDiv = document.getElementById('searchResults');
         if (!val) { resultsDiv.style.display = 'none'; return; }
-        const filtered = vendors.filter(v => v.name.includes(val) || v.owner.includes(val) || (v.account && v.account.includes(val)));
+        const filtered = vendors.filter(v => (v.name && v.name.includes(val)) || (v.owner && v.owner.includes(val)) || (v.account && v.account.includes(val)));
         if (filtered.length > 0) {
             resultsDiv.innerHTML = filtered.map(v => `
                 <div class="search-item" onclick="selectVendor('${v.name}', '${v.bankCode}', '${v.account}', '${v.owner}')">
-                    <div><strong>${v.name}</strong> (${v.owner})</div>
+                    <div><strong>${v.name}</strong></div>
+                    <div style="margin-top:2px;">收款戶名：${v.owner || ''}</div>
                     <div class="search-subtext">行庫：${v.bankCode || ''} | 帳號：${v.account || ''}</div>
                 </div>
             `).join('');
@@ -298,6 +312,31 @@
         document.getElementById('tempAccount').value = acc || "";
         document.getElementById('tempOwner').value = owner || "";
         document.getElementById('searchResults').style.display = 'none';
+    }
+
+    // 明細建議功能
+    function suggestWorkNote(val) {
+        const resultsDiv = document.getElementById('workNoteResults');
+        if (!val) { resultsDiv.style.display = 'none'; return; }
+        
+        const historyNotes = [...new Set(db.map(item => item.desc))];
+        const filtered = historyNotes.filter(note => note && note.startsWith(val));
+        
+        if (filtered.length > 0) {
+            resultsDiv.innerHTML = filtered.map(note => `
+                <div class="search-item" onclick="selectWorkNote('${note}')">
+                    <strong>${note}</strong>
+                </div>
+            `).join('');
+            resultsDiv.style.display = 'block';
+        } else {
+            resultsDiv.style.display = 'none';
+        }
+    }
+
+    function selectWorkNote(note) {
+        document.getElementById('workNote').value = note;
+        document.getElementById('workNoteResults').style.display = 'none';
     }
 
     function exportFullBackup() {
@@ -407,18 +446,11 @@
 
     function updateVendorField(id, field, value) {
         const idx = vendors.findIndex(v => v.id == id);
-        if(idx !== -1) { 
-            vendors[idx][field] = value.trim(); 
-            localStorage.setItem('vendorList', JSON.stringify(vendors)); 
-        }
+        if(idx !== -1) { vendors[idx][field] = value.trim(); localStorage.setItem('vendorList', JSON.stringify(vendors)); }
     }
 
     function deleteVendor(id) {
-        if(confirm("確定刪除此廠商？")) { 
-            vendors = vendors.filter(v => v.id != id); 
-            localStorage.setItem('vendorList', JSON.stringify(vendors)); 
-            renderVendorTable(); 
-        }
+        if(confirm("確定刪除此廠商？")) { vendors = vendors.filter(v => v.id != id); localStorage.setItem('vendorList', JSON.stringify(vendors)); renderVendorTable(); }
     }
 
     function clearVendors() {
@@ -437,7 +469,6 @@
     function getMinguoToday() {
         const savedDate = localStorage.getItem('lastUsedDate');
         if(savedDate) return savedDate;
-        
         let d = new Date();
         const y = d.getFullYear() - 1911; const m = (d.getMonth() + 1).toString().padStart(2, '0'); const day = d.getDate().toString().padStart(2, '0');
         return `${y}${m}${day}`;
@@ -453,7 +484,6 @@
         if (amount <= 0) { alert("請輸入正確金額"); return; }
         
         localStorage.setItem('lastUsedDate', dateStr);
-        
         const timestamp = Date.now();
         const saveMonthLabel = `${new Date().getFullYear()}.${(new Date().getMonth()+1).toString().padStart(2, '0')}`;
         const workNote = document.getElementById('workNote').value || "日常出款";
@@ -473,7 +503,7 @@
         
         db.push(record);
         localStorage.setItem('paymentRecords_v2', JSON.stringify(db));
-        alert("資料儲存成功！");
+        // 移除 alert 提示
         clearInputFields();
     }
 
@@ -569,7 +599,6 @@
             const tr = document.createElement('tr');
             tr.draggable = true;
             tr.dataset.id = item.id;
-            
             tr.ondragstart = (e) => handleDragStart(e, item.id);
             tr.ondragover = (e) => handleDragOver(e);
             tr.ondragleave = (e) => handleDragLeave(e);
@@ -636,6 +665,40 @@
         generateExcelFile(headers, data, `出款明細_${filterMon}_${filterComp}`);
     }
 
+    // 匯出取條明細
+    function exportWithdrawalSlipExcel() {
+        const filterComp = document.getElementById('filterCompany').value;
+        const filterMon = document.getElementById('filterMonth').value;
+        
+        // 取得目前篩選且「有勾選」的項目
+        const checkedIds = Array.from(document.querySelectorAll('.item-check:checked')).map(cb => cb.dataset.id);
+        const filtered = db.filter(item => 
+            (filterComp === "全部" || item.company === filterComp) && 
+            (filterMon === "全部" || item.saveMonth === filterMon) &&
+            checkedIds.includes(String(item.id))
+        );
+
+        if(filtered.length === 0) return alert("目前無勾選資料可匯出");
+
+        // 按出款方分組統計
+        const summaryMap = {};
+        filtered.forEach(item => {
+            if(!summaryMap[item.company]) {
+                summaryMap[item.company] = { acc: item.companyAcc, total: 0 };
+            }
+            summaryMap[item.company].total += item.amount;
+        });
+
+        const headers = ["出款帳戶名稱", "出款帳號", "合計金額"];
+        const data = Object.keys(summaryMap).map(name => [
+            name, 
+            summaryMap[name].acc, 
+            summaryMap[name].total
+        ]);
+
+        generateExcelFile(headers, data, `取條明細統計_${filterMon}_${filterComp}`);
+    }
+
     function initMonthFilter() {
         const months = new Set();
         db.forEach(item => { if(item.saveMonth) months.add(item.saveMonth); });
@@ -647,7 +710,12 @@
         document.getElementById('filterMonth').value = currentLabel;
     }
 
-    document.addEventListener('click', e => { if (!e.target.closest('.col')) document.getElementById('searchResults').style.display = 'none'; });
+    document.addEventListener('click', e => { 
+        if (!e.target.closest('.col')) {
+            document.getElementById('searchResults').style.display = 'none';
+            document.getElementById('workNoteResults').style.display = 'none';
+        }
+    });
     window.onload = () => { 
         document.getElementById('remittanceDate').value = getMinguoToday();
         initMonthFilter(); 
